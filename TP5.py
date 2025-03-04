@@ -1,86 +1,93 @@
 import sys
 import heapq
 
-# Define the graph nodes and weighted edges
-nodes = ["A", "B", "C", "D", "E", "F", "G", "H", "L", "M"]
-graph_edges = {
+# Define the graph
+vertices = ["A", "B", "C", "D", "E", "F", "G", "H", "L", "M"]
+edges = {
     ("A", "B"): 4, ("A", "C"): 1, ("B", "F"): 3, ("C", "D"): 8,
     ("C", "F"): 7, ("D", "H"): 5, ("E", "F"): 1, ("E", "H"): 2,
     ("E", "L"): 2, ("F", "H"): 1, ("H", "G"): 3, ("H", "M"): 7,
     ("H", "L"): 6, ("G", "M"): 4, ("G", "L"): 4, ("L", "M"): 1
 }
 
-def build_adjacency_matrix(node_list, edge_info):
-    num_nodes = len(node_list)
-    mapping = {node: i for i, node in enumerate(node_list)}
-    matrix = [[float('inf')] * num_nodes for _ in range(num_nodes)]
-    
-    
-    for i in range(num_nodes):
-        matrix[i][i] = 0
+def create_adjacency_matrix(vertices, edges):
+    n = len(vertices)
+    vertex_index = {vertex: idx for idx, vertex in enumerate(vertices)}
+    adj_matrix = [[float('inf')] * n for _ in range(n)]
 
-    for (u, v), cost in edge_info.items():
-        i_u = mapping[u]
-        i_v = mapping[v]
-        matrix[i_u][i_v] = cost
-        matrix[i_v][i_u] = cost  
+    for i in range(n):
+        adj_matrix[i][i] = 0  # Distance to itself is 0
 
-    return matrix, mapping
+    for (u, v), weight in edges.items():
+        u_idx, v_idx = vertex_index[u], vertex_index[v]
+        adj_matrix[u_idx][v_idx] = weight
+        adj_matrix[v_idx][u_idx] = weight  # Undirected graph
 
-def dijkstra_shortest_route(matrix, mapping, start, end):
-    n = len(matrix)
-    distances = [float('inf')] * n
-    predecessors = [None] * n
-    start_index = mapping[start]
-    end_index = mapping[end]
-    distances[start_index] = 0
+    return adj_matrix, vertex_index
 
-    queue = [(0, start_index)]
-    while queue:
-        curr_distance, curr_index = heapq.heappop(queue)
-        if curr_index == end_index:
+def dijkstra(adj_matrix, vertex_index, source, target):
+    n = len(adj_matrix)
+    dist = [float('inf')] * n
+    prev = [None] * n
+    source_idx = vertex_index[source]
+    target_idx = vertex_index[target]
+    dist[source_idx] = 0
+
+    pq = [(0, source_idx)]  # Priority queue with (distance, vertex)
+
+    while pq:
+        current_dist, current_vertex = heapq.heappop(pq)
+
+        if current_vertex == target_idx:
             break
-        if curr_distance > distances[curr_index]:
+
+        if current_dist > dist[current_vertex]:
             continue
 
         for neighbor in range(n):
-            weight = matrix[curr_index][neighbor]
+            weight = adj_matrix[current_vertex][neighbor]
             if weight < float('inf'):
-                new_distance = curr_distance + weight
-                if new_distance < distances[neighbor]:
-                    distances[neighbor] = new_distance
-                    predecessors[neighbor] = curr_index
-                    heapq.heappush(queue, (new_distance, neighbor))
-    
-    
-    route = []
-    current = end_index
-    while current is not None:
-        route.append(current)
-        current = predecessors[current]
-    route.reverse()
+                distance = current_dist + weight
+                if distance < dist[neighbor]:
+                    dist[neighbor] = distance
+                    prev[neighbor] = current_vertex
+                    heapq.heappush(pq, (distance, neighbor))
 
-    
-    index_to_node = {idx: node for node, idx in mapping.items()}
-    route_named = [index_to_node[idx] for idx in route]
+    # Reconstruct the shortest path
+    path = []
+    at = target_idx
+    while at is not None:
+        path.append(at)
+        at = prev[at]
+    path.reverse()
 
-    return route_named, distances[end_index]
+    # Convert indices back to vertex names
+    idx_to_vertex = {idx: vertex for vertex, idx in vertex_index.items()}
+    path = [idx_to_vertex[idx] for idx in path]
 
-if __name__ == '__main__':
-    
-    matrix, mapping = build_adjacency_matrix(nodes, graph_edges)
-    print("Available Nodes:", nodes)
-    
-    source = input("Enter the source node: ").strip().upper()
-    destination = input("Enter the destination node: ").strip().upper()
+    return path, dist[target_idx]
 
-    if source not in mapping or destination not in mapping:
-        print("Error: One or both of the nodes entered are invalid.")
-        sys.exit(1)
 
-    path, total_cost = dijkstra_shortest_route(matrix, mapping, source, destination)
-    if total_cost == float('inf'):
-        print(f"No valid route exists from {source} to {destination}.")
-    else:
-        print(f"Optimal path from {source} to {destination}: {' -> '.join(path)}")
-        print(f"Total cost: {total_cost}")
+# Create adjacency matrix
+adj_matrix, vertex_index = create_adjacency_matrix(vertices, edges)
+
+# Display vertices
+print("Vertices:", vertices)
+
+# Get user input
+source = input("Enter source vertex: ").strip().upper()
+target = input("Enter target vertex: ").strip().upper()
+
+# Validate input
+if source not in vertex_index or target not in vertex_index:
+    print("Invalid source or target vertex.")
+    sys.exit(1)
+
+ # Run Dijkstra's algorithm
+path, total_weight = dijkstra(adj_matrix, vertex_index, source, target)
+
+if total_weight == float('inf'):
+    print(f"No path found from {source} to {target}.")
+else:
+    print(f"Shortest path from {source} to {target}: {' -> '.join(path)}")
+    print(f"Total weight: {total_weight}")
